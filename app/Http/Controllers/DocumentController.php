@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Document;
 use Illuminate\Support\Str;
+use App\Jobs\ProcessDocumentJob;
 
 class DocumentController extends Controller
 {
@@ -24,6 +25,7 @@ class DocumentController extends Controller
             'stored_filename' => $storedFilename,
             'status' => 'pending',
         ]);
+        ProcessDocumentJob::dispatch($document->id);
 
         return response()->json($document, 201);
     }
