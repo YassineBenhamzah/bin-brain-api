@@ -13,5 +13,11 @@ class Document extends Model
         'ocr_text',
         'confidence_score',
         'failure_reason',
+        'user_id',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
