@@ -33,7 +33,7 @@ class ProcessDocumentJob implements ShouldQueue
 
         try {
             Log::info("Sending document {$document->id} to OCR service");
-            
+
             // Wait up to 300 seconds for a massive PDF to process
             $response = Http::timeout(300)->post('http://ocr:3000/process', [
                 'filePath' => $filePath

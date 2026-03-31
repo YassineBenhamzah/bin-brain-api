@@ -17,14 +17,14 @@ class DocumentController extends Controller
 
         $file = $request->file('pdf');
         $ext = strtolower($file->getClientOriginalExtension());
-        
+
         $storedFilename = Str::uuid()->toString() . '.pdf';
         $originalFilename = $file->getClientOriginalName();
 
         if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
             // Normalize filename
             $originalFilename = pathinfo($originalFilename, PATHINFO_FILENAME) . '.pdf';
-            
+
             // Forge into PDF
             $pdf = new \setasign\Fpdf\Fpdf();
             $pdf->AddPage();
@@ -52,14 +52,20 @@ class DocumentController extends Controller
         $user = $request->user();
         $query = Document::with('user:id,name');
 
-        if ($request->has('q')) {
+        if ($request->has('q') && strlen($request->q) > 0) {
             $q = $request->q;
-            $query->where(function($query) use ($q) {
-                $query->where('ocr_text', 'LIKE', "%{$q}%")
-                      ->orWhere('original_filename', 'LIKE', "%{$q}%")
-                      ->orWhereHas('user', function($userQuery) use ($q) {
-                          $userQuery->where('name', 'LIKE', "%{$q}%");
-                      });
+
+            // Get matching user IDs first (fast, small table)
+            $matchingUserIds = \App\Models\User::where('name', 'LIKE', "%{$q}%")
+                ->pluck('id')
+                ->toArray();
+
+            $query->where(function ($query) use ($q, $matchingUserIds) {
+                $query->where('original_filename', 'LIKE', "%{$q}%");
+
+                if (!empty($matchingUserIds)) {
+                    $query->orWhereIn('user_id', $matchingUserIds);
+                }
             });
         }
 
@@ -82,7 +88,7 @@ class DocumentController extends Controller
     public function download($id)
     {
         $document = Document::find($id);
-        
+
         if (!$document) {
             return response()->json(['error' => 'Document not found in database'], 404);
         }
@@ -112,10 +118,10 @@ class DocumentController extends Controller
     {
         $document = Document::find($id);
         if (!$document) return response()->json(['error' => 'Document not found'], 404);
-        
+
         $filePath = '/var/documents/' . $document->stored_filename;
         if (!file_exists($filePath)) return response()->json(['error' => 'Physical file missing'], 404);
-        
+
         // This tells the browser to PREVIEW the file inline instead of downloading it!
         return response()->file($filePath);
     }
